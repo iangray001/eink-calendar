@@ -1,0 +1,27 @@
+#macOS things
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+.vscode/
+
+
+
+#Python things
+__pycache__/
+*.py[cod]
+*$py.class
+
+
+
+#Resources which we cannot redistribute (see installation instructions in README.md)
+metoffer.py
+waveshare_epd/
+
+
+#Output files and caches
+credentials.json
+weather.json
+token.json
+cachefile
+test-[br].png
