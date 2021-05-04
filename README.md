@@ -11,7 +11,7 @@ When you first execute the script, it will create a `weather.json`. You will nee
 To authorise the Google Calendar API, go to https://developers.google.com/calendar/quickstart/php and click on `Enable the Calendar API`. You can then download `credentials.json` and place it in the same folder as the main script. Execute `render.py` on your desktop/laptop, and it will load an authentication webpage, allowing you to complete authentication and generate a token, which the script will save as `token.json`. You can then copy all these files to the Raspberry Pi and it will execute headlessly.
 
 
-##Options
+## Options
 
 For a full list of options run:
 
@@ -39,7 +39,7 @@ This will create two files `test-b.png` and `test-r.png` which are the black and
 The script supports caching to prevent unnecessary screen refreshes. If the `--cache <filename>` option is provided, then a file is created in the same directory as `render.py` which contains the events that were fetched in that run. Subsequent runs will only refresh the eink if the fetched events differ from the cache file contents. This allows you to have the script refresh much more frequently without causing distracting refreshes.
 
 
-##Setting up the Pi
+## Setting up the Pi
 
 Almost any Raspberry Pi will work for this project, once [set up in as a headless device](https://aallan.medium.com/setting-up-a-headless-raspberry-pi-zero-3ded0b83f274). You will need to install the Python prerequisites:
 
