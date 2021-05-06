@@ -1,6 +1,8 @@
 
 # eink Calendar and Weather Display
 
+![eink Calendar and Weather Display](top.png)
+
 This project is built around the [7.5 inch HD panel from Waveshare](https://www.waveshare.com/wiki/7.5inch_HD_e-Paper_HAT_%28B%29). This has a resolution of 880x528. Other panels will require tweaks to the layout.
 
 
