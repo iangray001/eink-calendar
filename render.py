@@ -199,19 +199,24 @@ def renderFrame(width, height, days, weather):
     id_b.rectangle([(0, bottomgutter-1), (width, bottomgutter+1)], 0)
     if weather != None:
         xpos = 50
+        #Hourly forecasts, but we only want ones that are in the future
+        filteredforecasts = [x for x in weather[0].data if x['timestamp'][0] > datetime.now()]
+
         for i in range(7):
-            timetext = weather[0].data[i]['timestamp'][0].strftime("%H:%M")
-            weathertext = WeatherToMeteoGlyph[weather[0].data[i]['Weather Type'][0]]
-            temptext = f"{weather[0].data[i]['Feels Like Temperature'][0]}°C"
+            if i < len(filteredforecasts):
+                timetext = filteredforecasts[i]['timestamp'][0].strftime("%H:%M")
+                weathertext = WeatherToMeteoGlyph[filteredforecasts[i]['Weather Type'][0]]
+                temptext = f"{filteredforecasts[i]['Feels Like Temperature'][0]}°C"
 
-            id_r.text((xpos, bottomgutter+20), timetext, font = fonts['DateSmall'], fill = 0, anchor="mt")
-            id_b.text((xpos, bottomgutter+65), weathertext, font = fonts['Meteocons'], fill = 0, anchor="mm")
-            id_b.text((xpos, bottomgutter+100), temptext, font = fonts['DateSmall'], fill = 0, anchor="mt")
-            xpos = xpos + 80
+                id_r.text((xpos, bottomgutter+20), timetext, font = fonts['DateSmall'], fill = 0, anchor="mt")
+                id_b.text((xpos, bottomgutter+65), weathertext, font = fonts['Meteocons'], fill = 0, anchor="mm")
+                id_b.text((xpos, bottomgutter+100), temptext, font = fonts['DateSmall'], fill = 0, anchor="mt")
+                xpos = xpos + 80
 
+        #Daily forecasts
         id_b.rectangle([(xpos-21, bottomgutter), (xpos-19, height)], 0)
         xpos = xpos + 40
-        for i in [2,4,6]:
+        for i in [2,4,6]: #Even results are 'day' forecasts, odd are 'night'
             timetext = weather[1].data[i]['timestamp'][0].strftime("%a")
             weathertext = WeatherToMeteoGlyph[weather[1].data[i]['Weather Type'][0]]
             temptext = f"{weather[1].data[i]['Feels Like Day Maximum Temperature'][0]}°"
@@ -265,6 +270,8 @@ def main():
     cmdparser.add_option("--height", type="int", default=528, help="If not drawing to eink, output height of image.")
     cmdparser.add_option("-d", "--days", type="int", default=7, help="Number of days to look ahead for events.")
     cmdparser.add_option("--cache", type="string", help="Filename of cache file to save fetched events to. Will only redraw if the events have changed.")
+    cmdparser.add_option("--cachehours", type="int", default=2, help="Number of hours that the cache remains valid for.")
+
     
     (options, _) = cmdparser.parse_args()
 
@@ -294,22 +301,7 @@ def main():
         events = getEvents(calservice, ids)
         days = eventsToDays(events, options.days)
     
-        if options.cache != None:
-            cachefile = os.path.join(curdir, options.cache)
-            if os.path.exists(cachefile):
-                cached = pickle.load(open(cachefile, "rb"))
-                if cached == days:
-                    #Nothing has changed
-                    if options.verbose: print(f"Fetched event data is the same as cached data.")
-                    redraw = False
-            #Else we will update the cache
-            pickle.dump(days, open(cachefile, "wb"))
-
-        if options.verbose:
-            pprint.pprint(days)
-
         if not options.noweather:
-
             if os.path.exists(os.path.join(curdir, 'weather.json')):
                 with open(os.path.join(curdir, 'weather.json')) as f:
                     data = json.load(f)
@@ -331,6 +323,27 @@ def main():
             if options.verbose: print(f"Weather forecast for {weather[0].name} fetched.")
         else:
             weather = None
+
+
+        if options.cache != None:
+            cachefile = os.path.join(curdir, options.cache)
+            if os.path.exists(cachefile):
+                try:
+                    (cacheddays, cachedtime) = pickle.load(open(cachefile, "rb"))
+                    if cacheddays == days and datetime.now() < cachedtime + timedelta(hours=options.cachehours):
+                        #Nothing has changed
+                        if options.verbose: print(f"Fetched data is the same as cached data.")
+                        redraw = False
+                except:
+                    #Any errors handling the cache, just invalitate it
+                    print("Error whilst reading cache: ", sys.exc_info()[0])
+            #Else we will update the cache
+            #We store the days dictionary and the current time in the cache, because the MetOffice objects are incomparable and this
+            #is the easiest way to ensure that we update at least frequently enough to show the new forecast.
+            pickle.dump((days, datetime.now()), open(cachefile, "wb"))
+
+        if options.verbose:
+            pprint.pprint(days)
 
         if redraw:
             if options.verbose: print("Drawing frame.")
