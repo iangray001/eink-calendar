@@ -65,7 +65,7 @@ def registerCalendarService():
     return build('calendar', 'v3', credentials=creds)
     
 
-def getIDsFromNames(calservice, names):
+def getIDsFromNames(calservice, names, printall):
     """
     names is a string of the names of calendars to show, delimited with comma
     i.e. "Main,Work"
@@ -73,15 +73,20 @@ def getIDsFromNames(calservice, names):
     """
     ids = []
     caldata = calservice.calendarList().list().execute()
+    if printall:
+        print("Calendar IDs in account:")
+        for c in caldata['items']:
+            print(c['id'])
+        print("")
     cals = names.split(',')
     for c in cals:
         if c == "primary": #primary is a special ID understood by the API as the "main" calendar
             ids.append("primary")
-            break
+            continue 
         for data in caldata.get('items', []):
             if data['summary'] == c:
                 ids.append(data['id'])
-                break
+                continue
     return ids
 
 
@@ -297,7 +302,7 @@ def main():
 
     if options.input == "":
         calservice = registerCalendarService()
-        ids = getIDsFromNames(calservice, options.calendars)
+        ids = getIDsFromNames(calservice, options.calendars, options.verbose)
         events = getEvents(calservice, ids)
         days = eventsToDays(events, options.days)
     
