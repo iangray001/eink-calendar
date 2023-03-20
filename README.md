@@ -10,8 +10,17 @@ This project is built around the [7.5 inch HD panel from Waveshare](https://www.
 
 When you first execute the script, it will create a `weather.json`. You will need to enter into this file the latitude and longitude of the forecast to display, and a [Met Office API key](https://www.metoffice.gov.uk/services/data/datapoint/api). 
 
-To authorise the Google Calendar API, go to https://developers.google.com/calendar/quickstart/php and click on `Enable the Calendar API`. You can then download `credentials.json` and place it in the same folder as the main script. Execute `render.py` on your desktop/laptop, and it will load an authentication webpage, allowing you to complete authentication and generate a token, which the script will save as `token.json`. You can then copy all these files to the Raspberry Pi and it will execute headlessly.
+To authorise the Google Calendar API, go to https://developers.google.com/calendar/quickstart/php and click on `Enable the Calendar API`. You can then download `credentials.json` and place it in the same folder as the main script. 
 
+Execute:
+
+```
+./render.py -o test
+``` 
+
+on your desktop/laptop, and it will load an authentication webpage, allowing you to complete authentication and generate a token, which the script will save as `token.json`. If everything is sucessfull it will create the test output files `test-b.png` and `test-r.png` which are the black and red channels that would be sent to the eink. 
+
+After performing this step once, copy all files to the Raspberry Pi and it will execute headlessly from now on.
 
 ## Options
 
