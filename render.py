@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
 import sys, os, time, optparse, platform, pprint, calendar, json, pickle
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from PIL import Image,ImageDraw,ImageFont
-import metoffer
+import datahub
 from googleapiclient.discovery import build, Resource
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -94,7 +94,7 @@ def getEvents(calservice, ids):
     """
     Returns a sorted list of events for the calendars in ids
     """
-    now = datetime.utcnow().isoformat() + 'Z'
+    now = datetime.now(timezone.utc).isoformat()
     events = []
     for id in ids:
         events_result = calservice.events().list(calendarId=id, timeMin=now, maxResults=10, singleEvents=True, orderBy='startTime').execute()
@@ -205,13 +205,13 @@ def renderFrame(width, height, days, weather):
     if weather != None:
         xpos = 50
         #Hourly forecasts, but we only want ones that are in the future
-        filteredforecasts = [x for x in weather[0].data if x['timestamp'][0] > datetime.now()]
+        filteredforecasts = [x for x in weather[0] if x['timestamp'] > datetime.now()]
 
         for i in range(7):
             if i < len(filteredforecasts):
-                timetext = filteredforecasts[i]['timestamp'][0].strftime("%H:%M")
-                weathertext = WeatherToMeteoGlyph[filteredforecasts[i]['Weather Type'][0]]
-                temptext = f"{filteredforecasts[i]['Feels Like Temperature'][0]}°C"
+                timetext = filteredforecasts[i]['timestamp'].strftime("%H:%M")
+                weathertext = WeatherToMeteoGlyph[filteredforecasts[i]['weather_code']]
+                temptext = f"{filteredforecasts[i]['feels_like_temp']:.0f}°C"
 
                 id_r.text((xpos, bottomgutter+20), timetext, font = fonts['DateSmall'], fill = 0, anchor="mt")
                 id_b.text((xpos, bottomgutter+65), weathertext, font = fonts['Meteocons'], fill = 0, anchor="mm")
@@ -221,19 +221,20 @@ def renderFrame(width, height, days, weather):
         #Daily forecasts
         id_b.rectangle([(xpos-21, bottomgutter), (xpos-19, height)], 0)
         xpos = xpos + 40
-        for i in [2,4,6]: #Even results are 'day' forecasts, odd are 'night'
-            timetext = weather[1].data[i]['timestamp'][0].strftime("%a")
-            weathertext = WeatherToMeteoGlyph[weather[1].data[i]['Weather Type'][0]]
-            temptext = f"{weather[1].data[i]['Feels Like Day Maximum Temperature'][0]}°"
-            temptext2 = f"{weather[1].data[i+1]['Feels Like Night Minimum Temperature'][0]}°"
+        for i in [1,2,3]: #Skip today (index 0), show next 3 days
+            if i < len(weather[1]):
+                timetext = weather[1][i]['timestamp'].strftime("%a")
+                weathertext = WeatherToMeteoGlyph[weather[1][i]['weather_code']]
+                temptext = f"{weather[1][i]['max_feels_like_temp']:.0f}°"
+                temptext2 = f"{weather[1][i]['min_feels_like_temp']:.0f}°"
 
-            id_r.text((xpos, bottomgutter+20), timetext, font = fonts['DateSmall'], fill = 0, anchor="mt")
-            id_b.text((xpos, bottomgutter+65), weathertext, font = fonts['Meteocons'], fill = 0, anchor="mm")
+                id_r.text((xpos, bottomgutter+20), timetext, font = fonts['DateSmall'], fill = 0, anchor="mt")
+                id_b.text((xpos, bottomgutter+65), weathertext, font = fonts['Meteocons'], fill = 0, anchor="mm")
 
-            id_b.text((xpos-15, bottomgutter+100), temptext, font = fonts['DateSmall'], fill = 0, anchor="mt")
-            id_b.text((xpos+15, bottomgutter+100), temptext2, font = fonts['Pixellari16'], fill = 0, anchor="mt")
- 
-            xpos = xpos + 80
+                id_b.text((xpos-15, bottomgutter+100), temptext, font = fonts['DateSmall'], fill = 0, anchor="mt")
+                id_b.text((xpos+15, bottomgutter+100), temptext2, font = fonts['Pixellari16'], fill = 0, anchor="mt")
+
+                xpos = xpos + 80
 
 
     # Mini calendar view
@@ -310,22 +311,25 @@ def main():
             if os.path.exists(os.path.join(curdir, 'weather.json')):
                 with open(os.path.join(curdir, 'weather.json')) as f:
                     data = json.load(f)
-                if not "lat" in data and not "lon" in data and not "apikey" in data:
+                if "lat" not in data or "lon" not in data or "apikey" not in data:
                     print("weather.json is in an incorrect format.")
                     sys.exit()
             else:
-                weatherjson = '{\n\t"lat": "54.9755153",\n\t"lon": "-1.6222127",\n\t"apikey": "00000000-0000-0000-0000-000000000000"\n}'
+                weatherjson = '{\n\t"lat": "54.9755153",\n\t"lon": "-1.6222127",\n\t"apikey": "your-datahub-api-key"\n}'
                 with open(os.path.join(curdir, 'weather.json'), 'a') as f:
                     f.write(weatherjson)
-                print("weather.json created. Fill it in and retry.")
+                print("weather.json created. Get a free API key from https://datahub.metoffice.gov.uk, fill it in and retry.")
                 sys.exit()
 
-            mo = metoffer.MetOffer(data['apikey'])
-            forecast = mo.nearest_loc_forecast(float(data['lat']), float(data['lon']), metoffer.THREE_HOURLY)
-            dailyforecast = mo.nearest_loc_forecast(float(data['lat']), float(data['lon']), metoffer.DAILY)
-            weather = (metoffer.Weather(forecast), metoffer.Weather(dailyforecast))
+            try:
+                hourly = datahub.fetch_three_hourly(data['apikey'], float(data['lat']), float(data['lon']))
+                daily = datahub.fetch_daily(data['apikey'], float(data['lat']), float(data['lon']))
+                weather = (hourly, daily)
+            except Exception as e:
+                print(f"Failed to fetch weather from DataHub: {e}")
+                weather = None
 
-            if options.verbose: print(f"Weather forecast for {weather[0].name} fetched.")
+            if options.verbose and weather: print(f"Weather forecast fetched ({len(hourly)} hourly, {len(daily)} daily entries).")
         else:
             weather = None
 
@@ -343,8 +347,8 @@ def main():
                     #Any errors handling the cache, just invalitate it
                     print("Error whilst reading cache: ", sys.exc_info()[0])
             #Else we will update the cache
-            #We store the days dictionary and the current time in the cache, because the MetOffice objects are incomparable and this
-            #is the easiest way to ensure that we update at least frequently enough to show the new forecast.
+            #We store the days dictionary and the current time in the cache — this is the easiest way to ensure
+            #that we update at least frequently enough to show the new forecast.
             pickle.dump((days, datetime.now()), open(cachefile, "wb"))
 
         if options.verbose:

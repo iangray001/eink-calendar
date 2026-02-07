@@ -21,7 +21,11 @@ waveshare_epd/
 
 #Output files and caches
 credentials.json
+credentials-old.json
 weather.json
 token.json
 cachefile
 test-[br].png
+
+#Editor/IDE files
+eink.code-workspace
